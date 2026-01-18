@@ -121,13 +121,59 @@ content.innerHTML =
     '</a>' +
   '</div>';
 
-// Grokipedia link — only if it's an article page
+  const unreliableDomainsDefault = [
+    "nytimes.com",
+    "washingtonpost.com",
+    "theatlantic.com",
+    "cnn.com",
+    "espn.com",
+    "politico.com",
+    "thedailybeast.com",
+    "newyorker.com",
+    "buzzfeednews.com",
+    "people.com",
+    "huffpost.com",
+    "npr.org",
+    "bbc.com",
+    "motherjones.com",
+    "huffingtonpost.ca",
+    "economist.com",
+    "azfamily.com",
+    "axios.com",
+    "aljazeera.com",
+    "vanityfair.com"
+];
+  let unreliableDomains = [];
+
+  // Load domains from storage
+  async function loadDomains() {
+      return new Promise((resolve) => {
+          chrome.storage.sync.get(['unreliableDomains'], function(result) {
+              if (chrome.runtime.lastError) {
+                  console.error("Error loading domains:", chrome.runtime.lastError);
+                  resolve(unreliableDomainsDefault);
+                  return;
+              }
+              
+              // If no custom domains saved, use defaults
+              const domains = result.unreliableDomains && result.unreliableDomains.length > 0 
+                  ? result.unreliableDomains 
+                  : unreliableDomainsDefault;
+              
+              resolve(domains);
+          });
+      });
+  }
+
 if (isWikipediaArticle()) {
   var grokLinkContainer = document.createElement("div");
   grokLinkContainer.style.marginTop = "12px";
   grokLinkContainer.style.fontSize = "13px";
+  grokLinkContainer.style.display = "flex";
+  grokLinkContainer.style.flexDirection = "column";
 
-  var pageTitle = "";
+  (async function () {
+    var pageTitle = "";
   var titleElement = document.querySelector('h1#firstHeading');
   if (titleElement) {
     pageTitle = titleElement.textContent.trim();
@@ -165,14 +211,58 @@ if (isWikipediaArticle()) {
     grokLink.textContent = "See if this page is available on Grokipedia";
     grokLink.style.color = "#a5d8ff";
     grokLink.style.textDecoration = "none";
-    grokLink.style.borderBottom = "1px dotted #a5d8ff";
 
     grokLink.onmouseenter = () => { grokLink.style.color = "#4dabf7"; };
     grokLink.onmouseleave = () => { grokLink.style.color = "#a5d8ff"; };
 
     grokLinkContainer.appendChild(grokLink);
+
+    var conservapediaQuery = grokTitle.replace(/_/g, "+");
+    var conservapediaQueryUrl = "https://www.conservapedia.com/index.php?search="+conservapediaQuery;
+    var conservapediaLink = document.createElement("a");
+    conservapediaLink.target = "_blank";
+    conservapediaLink.href=conservapediaQueryUrl;
+    conservapediaLink.textContent = "Search in Conservapedia";
+    conservapediaLink.style.color = "#a5d8ff";
+    conservapediaLink.style.textDecoration = "none";
+
+    conservapediaLink.onmouseenter = () => { conservapediaLink.style.color = "#4dabf7"; };
+    conservapediaLink.onmouseleave = () => { conservapediaLink.style.color = "#a5d8ff" };
+
+    grokLinkContainer.appendChild(conservapediaLink);
+
     content.appendChild(grokLinkContainer);
+
+    // Get domains from storage
+    unreliableDomains = await loadDomains();
+
+    // Get all external reference links on the page
+    const links = document.querySelectorAll('.reference-text a.external');
+
+    // Convert NodeList → array of domain strings
+    const domains = [...links].map(link => {
+        try {
+            return new URL(link.href).hostname.replace(/^www\./, '');
+        } catch {
+            return null;
+        }
+    }).filter(Boolean);
+
+    // Remove duplicates
+    const uniqueDomains = [...new Set(domains)];
+    const intersection = uniqueDomains.filter(domain =>
+      unreliableDomains.some(bad => domain === bad || domain.endsWith("." + bad))
+    );
+    var warningMessage = "";
+    if (intersection.length > 0){
+      warningMessage = "Warning! This article refers at the very least " + intersection.length + " domain names of unreliable sources. That includes: " + intersection.join(', ');
+    }
+    console.log(warningMessage);
+    var warningParagraph = document.createElement("p");
+    warningParagraph.innerHTML = warningMessage;
+    content.appendChild(warningParagraph);
   }
+  })();
 }
 
 // Apply hover effects to all links (sources + Grokipedia if present)

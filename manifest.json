@@ -3,8 +3,12 @@
   "version": "1.2",
   "description": "Removes the Wikipedia donation popup, replacing it with actual financials.",
   "manifest_version": 3,
+  "action": {
+  "default_popup": "popup.html"
+  },
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
   "host_permissions": [
     "https://*.wikipedia.org/*",
