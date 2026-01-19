@@ -255,7 +255,7 @@ if (isWikipediaArticle()) {
     );
     var warningMessage = "";
     if (intersection.length > 0){
-      warningMessage = "Warning! This article refers at the very least " + intersection.length + " domain names of unreliable sources. That includes: " + intersection.join(', ');
+      warningMessage = "Warning! This article refers to at the very least " + intersection.length + " domain names of unreliable sources. That includes: " + intersection.join(', ');
     }
     console.log(warningMessage);
     var warningParagraph = document.createElement("p");
